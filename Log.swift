@@ -12,22 +12,22 @@ import Foundation
 
 ///The log class containing all the needed methods
 public class Log {
-    
+
     ///The max size a log file can be in Kilobytes. Default is 1024 (1 MB)
     public var maxFileSize: UInt64 = 1024
-    
+
     ///The max number of log file that will be stored. Once this point is reached, the oldest file is deleted.
     public var maxFileCount = 4
-    
+
     ///The directory in which the log files will be written
     public var directory = Log.defaultDirectory()
-    
+
     //The name of the log files.
     public var name = "logfile"
-    
+
     ///logging singleton
     public class var logger: Log {
-        
+
         struct Static {
             static let instance: Log = Log()
         }
@@ -40,13 +40,17 @@ public class Log {
         formatter.dateStyle = .MediumStyle
         return formatter
     }
-    
+
     ///write content to the current log file.
     public func write(text: String) {
         let path = "\(directory)/\(logName(0))"
         let fileManager = NSFileManager.defaultManager()
         if !fileManager.fileExistsAtPath(path) {
-            "".writeToFile(path, atomically: true, encoding: NSUTF8StringEncoding, error: nil)
+            do {
+                try "".writeToFile(path, atomically: true, encoding: NSUTF8StringEncoding)
+            } catch {
+                print(error)
+            }
         }
         if let fileHandle = NSFileHandle(forWritingAtPath: path) {
             let dateStr = dateFormatter.stringFromDate(NSDate())
@@ -68,20 +72,34 @@ public class Log {
             //delete the oldest file
             let deletePath = "\(directory)/\(logName(maxFileCount))"
             let fileManager = NSFileManager.defaultManager()
-            fileManager.removeItemAtPath(deletePath, error: nil)
+
+            do {
+                try fileManager.removeItemAtPath(deletePath)
+            } catch {
+                print(error)
+            }
+
         }
     }
-    
+
     ///check the size of a file
     func fileSize(path: String) -> UInt64 {
         let fileManager = NSFileManager.defaultManager()
-        let attrs: NSDictionary? = fileManager.attributesOfItemAtPath(path, error: nil)
-        if let dict = attrs {
-            return dict.fileSize()
+        do {
+            var attrs: NSDictionary?
+            try attrs = fileManager.attributesOfItemAtPath(path)
+
+            if let dict = attrs {
+                return dict.fileSize()
+            }
+
+        } catch {
+            print(error)
         }
+
         return 0
     }
-    
+
     ///Recursive method call to rename log files
     func rename(index: Int) {
         let fileManager = NSFileManager.defaultManager()
@@ -90,14 +108,21 @@ public class Log {
         if fileManager.fileExistsAtPath(newPath) {
             rename(index+1)
         }
-        fileManager.moveItemAtPath(path, toPath: newPath, error: nil)
+
+        do {
+            try fileManager.moveItemAtPath(path, toPath: newPath)
+        } catch {
+            print(error)
+        }
+
+
     }
-    
+
     ///gets the log name
     func logName(num :Int) -> String {
         return "\(name)-\(num).log"
     }
-    
+
     ///get the default log directory
     class func defaultDirectory() -> String {
         var path = ""
@@ -113,12 +138,17 @@ public class Log {
                 }
             }
         #endif
-        if !fileManager.fileExistsAtPath(path) && path != ""  {
-            fileManager.createDirectoryAtPath(path, withIntermediateDirectories: false, attributes: nil, error: nil)
+
+        do {
+            if !fileManager.fileExistsAtPath(path) && path != ""  {
+                try fileManager.createDirectoryAtPath(path, withIntermediateDirectories: false, attributes: nil)
+            }
+        } catch {
+            print(error)
         }
         return path
     }
-    
+
 }
 
 ///a free function to make writing to the log much nicer
